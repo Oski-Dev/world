@@ -194,62 +194,68 @@ class SimulatorUI {
     }
 
     /**
-     * Rysuj jedno stworzenie
+     * Rysuj jedno stworzenie jako strzałkę
      */
     drawCreature(creature) {
         const x = creature.x;
         const y = creature.y;
-        const size = 6;
+        const length = 12; // Długość strzałki
+        const width = 4;   // Szerokość
         
-        // Rysuj ciało creaturki
+        // Koniec strzałki (głowica)
+        const endX = x + Math.cos(creature.angle) * length;
+        const endY = y + Math.sin(creature.angle) * length;
+        
+        // Punkt boczny do tworzenia trójkąta
+        const sideAngle1 = creature.angle + Math.PI / 2;
+        const sideAngle2 = creature.angle - Math.PI / 2;
+        const sideX1 = x + Math.cos(sideAngle1) * (width / 2);
+        const sideY1 = y + Math.sin(sideAngle1) * (width / 2);
+        const sideX2 = x + Math.cos(sideAngle2) * (width / 2);
+        const sideY2 = y + Math.sin(sideAngle2) * (width / 2);
+        
+        // Rysuj strzałkę jako trójkąt (tył) + linię (korpus)
         this.ctx.fillStyle = creature.color;
-        this.ctx.beginPath();
-        this.ctx.arc(x, y, size, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        // Rysuj kierunek jako strzałkę
-        const arrowLength = size * 2.5;
-        const endX = x + Math.cos(creature.angle) * arrowLength;
-        const endY = y + Math.sin(creature.angle) * arrowLength;
-        
         this.ctx.strokeStyle = creature.color;
-        this.ctx.lineWidth = 1.5;
+        this.ctx.lineWidth = 1;
+        
+        // Rysuj tułów (linia)
         this.ctx.beginPath();
         this.ctx.moveTo(x, y);
         this.ctx.lineTo(endX, endY);
+        this.ctx.strokeStyle = creature.color;
+        this.ctx.lineWidth = 2;
         this.ctx.stroke();
         
-        // Rysuj mały trójkąt na końcu strzałki
-        const arrowHeadSize = 3;
-        const angle1 = creature.angle + Math.PI * 0.8;
-        const angle2 = creature.angle - Math.PI * 0.8;
+        // Rysuj głowicę (trójkąt)
+        const arrowHeadLength = 6;
+        const angle1 = creature.angle + Math.PI * 0.85;
+        const angle2 = creature.angle - Math.PI * 0.85;
+        const headX1 = endX + Math.cos(angle1) * arrowHeadLength;
+        const headY1 = endY + Math.sin(angle1) * arrowHeadLength;
+        const headX2 = endX + Math.cos(angle2) * arrowHeadLength;
+        const headY2 = endY + Math.sin(angle2) * arrowHeadLength;
         
         this.ctx.beginPath();
         this.ctx.moveTo(endX, endY);
-        this.ctx.lineTo(
-            endX + Math.cos(angle1) * arrowHeadSize,
-            endY + Math.sin(angle1) * arrowHeadSize
-        );
-        this.ctx.lineTo(
-            endX + Math.cos(angle2) * arrowHeadSize,
-            endY + Math.sin(angle2) * arrowHeadSize
-        );
+        this.ctx.lineTo(headX1, headY1);
+        this.ctx.lineTo(headX2, headY2);
         this.ctx.closePath();
         this.ctx.fill();
         
-        // Opcjonalnie: pokaż energię jako pasek
+        // Pokaż energię jako mały pasek (opcjonalnie)
         const energyPercent = creature.energy / creature.maxEnergy;
-        const barWidth = 12;
+        const barWidth = 10;
         const barHeight = 2;
         
         // Tło paska
-        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        this.ctx.fillRect(x - barWidth / 2, y - size - 8, barWidth, barHeight);
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        this.ctx.fillRect(x - barWidth / 2, y - 10, barWidth, barHeight);
         
         // Pasek energii
         const energyColor = energyPercent > 0.5 ? '#4CAF50' : energyPercent > 0.25 ? '#FFC107' : '#F44336';
         this.ctx.fillStyle = energyColor;
-        this.ctx.fillRect(x - barWidth / 2, y - size - 8, barWidth * energyPercent, barHeight);
+        this.ctx.fillRect(x - barWidth / 2, y - 10, barWidth * energyPercent, barHeight);
     }
 
     /**
