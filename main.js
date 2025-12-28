@@ -304,6 +304,8 @@ class SimulatorUI {
             const angleDegrees = (creature.angle * 180 / Math.PI).toFixed(0);
             const speedFormatted = creature.currentSpeed.toFixed(2);
             const energyFormatted = creature.energy.toFixed(1);
+            const status = creature.isDead ? 'Dead ☠️' : 'Alive ✓';
+            const statusColor = creature.isDead ? '#FF6B6B' : '#4CAF50';
             
             row.innerHTML = `
                 <td>${creature.id}</td>
@@ -314,6 +316,7 @@ class SimulatorUI {
                 <td>${energyFormatted}</td>
                 <td>${creature.gender.charAt(0).toUpperCase() + creature.gender.slice(1)}</td>
                 <td>${creature.age}</td>
+                <td><span style="color: ${statusColor}; font-weight: bold;">${status}</span></td>
                 <td><span class="color-swatch" style="background-color: ${creature.color};"></span></td>
             `;
             

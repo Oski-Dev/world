@@ -109,7 +109,7 @@ class Creature {
 
         // Strata energii ze względu na ruch (tylko jeśli żywa)
         if (!this.isDead) {
-            const energyLoss = 0.1;
+            const energyLoss = 0.5; // Zwiększona strata energii dla szybszych zmian
             this.energy = Math.max(0, this.energy - energyLoss);
         }
 
