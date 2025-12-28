@@ -61,6 +61,16 @@ button:active {
     font-size: 14px;
 }
 
+.version {
+    padding: 10px 15px;
+    background: rgba(76, 175, 80, 0.2);
+    border-radius: 4px;
+    font-size: 12px;
+    border: 1px solid rgba(76, 175, 80, 0.5);
+    color: #4CAF50;
+    margin-left: 10px;
+}
+
 .creatures-table-container {
     margin-top: 30px;
     background: rgba(0, 0, 0, 0.3);

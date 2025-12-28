@@ -12,7 +12,11 @@ class SimulatorUI {
         this.canvas = document.getElementById('canvas');
         this.ctx = this.canvas.getContext('2d');
         this.statsEl = document.getElementById('stats');
+        this.versionEl = document.getElementById('version');
         this.tableBody = document.getElementById('creaturesTableBody');
+        
+        // Załaduj wersję
+        this.loadVersion();
         
         // Ustaw rozmiar canvas
         this.resizeCanvas();
@@ -44,6 +48,21 @@ class SimulatorUI {
         this.nextCreatureId = 1;
         
         console.log('Simulator UI inicjalizowany');
+    }
+
+    /**
+     * Załaduj wersję z version.json
+     */
+    loadVersion() {
+        fetch('version.json')
+            .then(response => response.json())
+            .then(data => {
+                this.versionEl.textContent = `v${data.version}`;
+            })
+            .catch(error => {
+                console.warn('Nie można załadować wersji:', error);
+                this.versionEl.textContent = 'v?.?.?';
+            });
     }
 
     /**

@@ -262,7 +262,34 @@ class Creature {
     }
 
     /**
-     * Walka z inną creaturką
+     * Interakcja z inną creaturką
+     * Typ interakcji zależy od: płci i libido
+     * - Sama płeć: walka
+     * - Różne płcie + wysokie libido u obu: rozmnażanie (zwraca 'breed')
+     * - Różne płcie + niskie libido: brak interakcji (zwraca 'ignore')
+     * 
+     * @returns {number|string} 1 (wygrana), -1 (przegrana), 'breed' (rozmnażanie), 'ignore' (brak interakcji)
+     */
+    interact(opponent) {
+        // Jeśli ta sama płeć - WALKA
+        if (this.gender === opponent.gender) {
+            return this.fight(opponent);
+        }
+        
+        // Różne płcie - sprawdź libido obu
+        const LIBIDO_THRESHOLD = 0.6; // Próg libido dla rozmnażania
+        
+        if (this.libido > LIBIDO_THRESHOLD && opponent.libido > LIBIDO_THRESHOLD) {
+            // Obaj mają wysokie libido - rozmnażanie
+            return 'breed';
+        } else {
+            // Co najmniej jedno ma niskie libido - brak interakcji
+            return 'ignore';
+        }
+    }
+
+    /**
+     * Walka z inną creaturką (Same gender interaction)
      * @returns {number} 1 jeśli wygrana, -1 jeśli przegrana
      */
     fight(opponent) {
@@ -282,6 +309,24 @@ class Creature {
             // Przegrana
             return -1; // Przegrana
         }
+    }
+
+    /**
+     * Rozmnażanie - obniż libido obu rodziców do 0
+     * (Tworzenie nowego obiektu będzie w następnym kroku)
+     */
+    breed(partner) {
+        // Obniż libido obu rodziców do 0
+        this.libido = 0;
+        partner.libido = 0;
+        
+        // Zwróć informację o rozmnażaniu (ID rodziców, ich pozycje)
+        return {
+            parent1Id: this.id,
+            parent2Id: partner.id,
+            x: (this.x + partner.x) / 2,
+            y: (this.y + partner.y) / 2
+        };
     }
 
     /**
@@ -345,8 +390,7 @@ class World {
         this.height = height;
         this.creatures = new Map(); // Map<id, Creature>
         this.generation = 0;
-        
-        // Dodaj tutaj atrybuty w kolejnych krokach
+        this.lastBreedingEvents = []; // Zdarzenia rozmnażania z ostatniej aktualizacji
     }
 
     /**
@@ -379,8 +423,9 @@ class World {
             creature.update();
         }
         
-        // Sprawdź czy żywe creaturki dotarły do swoich celów (walka/jedzenie)
+        // Sprawdź czy żywe creaturki dotarły do swoich celów (walka/jedzenie/rozmnażanie)
         const deadCreatures = new Set(); // Śledź które creaturki powinny umrzeć
+        const breedingEvents = []; // Zbierz zdarzenia rozmnażania
         
         for (const creature of creatures) {
             if (!creature.isDead && creature.targetId !== null && !deadCreatures.has(creature.id)) {
@@ -393,28 +438,48 @@ class World {
                             // Zjadła zwłoki
                             creature.eatCorpse();
                         } else {
-                            // WALKA!
-                            const result = creature.fight(targetCreature);
+                            // INTERAKCJA z żywą creaturką
+                            const result = creature.interact(targetCreature);
                             
-                            if (result === -1) {
+                            if (result === 'ignore') {
+                                // Brak interakcji - czyszczenie celu
+                                creature.targetId = null;
+                                creature.targetX = null;
+                                creature.targetY = null;
+                            } else if (result === 'breed') {
+                                // Rozmnażanie - obniż libido obu
+                                const breedInfo = creature.breed(targetCreature);
+                                breedingEvents.push(breedInfo);
+                                
+                                // Wyczyść cele po rozmnażaniu
+                                creature.targetId = null;
+                                creature.targetX = null;
+                                creature.targetY = null;
+                                targetCreature.targetId = null;
+                                targetCreature.targetX = null;
+                                targetCreature.targetY = null;
+                            } else if (result === 1) {
+                                // Wygrała walkę - oponent musi umrzeć
+                                targetCreature.energy = 0;
+                                deadCreatures.add(targetCreature.id);
+                                
+                                // Wyczyść cel po walce
+                                creature.targetId = null;
+                                creature.targetX = null;
+                                creature.targetY = null;
+                            } else if (result === -1) {
                                 // Przegrała walkę - musi umrzeć
                                 creature.energy = 0;
                                 deadCreatures.add(creature.id);
-                            } else {
-                                // Wygrała - oponent musi umrzeć
-                                targetCreature.energy = 0;
-                                deadCreatures.add(targetCreature.id);
                             }
-                            
-                            // Wyczyść cel po walce
-                            creature.targetId = null;
-                            creature.targetX = null;
-                            creature.targetY = null;
                         }
                     }
                 }
             }
         }
+        
+        // Zapisz informacje o rozmnażaniu (będą użyte do tworzenia młodych w następnym kroku)
+        this.lastBreedingEvents = breedingEvents;
         
         // Usuń martwe creaturki, które się już rozkładają
         const toRemove = [];
