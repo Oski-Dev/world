@@ -57,35 +57,37 @@ class Creature {
      * Aktualizuj stan stworzenia
      */
     update() {
-        // Jeśli energia zerowa, creaturka się zatrzymuje
+        // Jeśli energia zerowa - natychmiast martwe
         if (this.energy <= 0) {
             this.currentSpeed = 0;
             
-            // Licznik śmierci - 600 framów ≈ 10 sekund (60 FPS)
-            this.deathCounter++;
-            if (this.deathCounter >= 600 && !this.isDead) {
+            // Natychmiast oznacz jako martwe
+            if (!this.isDead) {
                 this.isDead = true;
-                this.deathCounter = 0; // Zresetuj licznik dla drugiej fazy
+                this.deathCounter = 0;
+            } else {
+                // Licznik dla rozkładu - 600 framów ≈ 10 sekund (60 FPS)
+                this.deathCounter++;
+                if (this.deathCounter >= 600) {
+                    this.isRemoved = true; // Oznacz do usunięcia
+                }
             }
         } else {
             // ===== SYSTEM RUCHU =====
-            // Bazowa prędkość ze spadkiem energii, ale z minimum dla czołgania się
-            const energyPercent = this.energy / this.maxEnergy;
-            const baseSpeed = this.maxSpeed * Math.max(0.15, energyPercent);
+            // Suma uczuć (0-1)
+            const emotionIntensity = this.fear + this.hunger + this.libido;
             
-            // Emocje zwiększają prędkość - im bardziej wzburzona, tym szybciej się porusza
-            const emotionIntensity = this.fear * 0.4 + this.hunger * 0.3 + this.libido * 0.2;
-            this.currentSpeed = baseSpeed * (1 + emotionIntensity);
+            if (emotionIntensity < 0.2) {
+                // Bardzo słabe emocje - prawie się nie rusza (tylko powoli wałęsa)
+                this.currentSpeed = this.maxSpeed * 0.05;
+            } else {
+                // Z uczuciami - szybko szuka zaspokojenia
+                const energyPercent = this.energy / this.maxEnergy;
+                const baseSpeed = this.maxSpeed * Math.max(0.3, energyPercent);
+                this.currentSpeed = baseSpeed * (1 + emotionIntensity * 1.5);
+            }
             
             this.deathCounter = 0;
-        }
-
-        // Jeśli creaturka już martwa, czekaj 10 sekund zanim zniknie
-        if (this.isDead) {
-            this.deathCounter++;
-            if (this.deathCounter >= 600) {
-                this.isRemoved = true; // Oznacz do usunięcia
-            }
         }
 
         // ===== UCZUCIA =====
@@ -191,7 +193,9 @@ class Creature {
     }
 
     /**
-     * Spróbuj znaleźć inną creaturkę w pobliżu (każdą, niezależnie od stanu)
+     * Spróbuj znaleźć inną creaturkę w pobliżu w zależności od emocji
+     * - Hunger: szuka zwłok (jedzenia)
+     * - Libido: szuka żywego partnera przeciwnej płci
      */
     updateTarget(allCreatures) {
         // Jeśli już ma cel i można do niego iść, kontynuuj
@@ -206,29 +210,35 @@ class Creature {
             return;
         }
 
-        // Szukaj każdej creaturki (nie tylko martwych) - jeśli warta energii
-        // Zawsze szukaj jeśli jest wystarczająco syta lub ma dość libido
-        const shouldHunt = this.hunger > 0.1 || this.libido > 0.3;
-        
-        if (!shouldHunt) {
-            return; // Nie wystarczająco głodna/zainteresowana
-        }
-
-        // Poszukaj innej creaturki w pobliżu
+        // Szukaj celu w zależności od dominującego uczucia
         let closestCreature = null;
         let closestDistance = this.sightRange;
 
-        for (const creature of allCreatures) {
-            if (creature.id !== this.id) { // Nie sam siebie
-                const distance = this.distanceTo(creature.x, creature.y);
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestCreature = creature;
+        if (this.hunger > 0.1) {
+            // Szukaj jedzenia - zwłoki
+            for (const creature of allCreatures) {
+                if (creature.isDead && creature.id !== this.id) {
+                    const distance = this.distanceTo(creature.x, creature.y);
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestCreature = creature;
+                    }
+                }
+            }
+        } else if (this.libido > 0.3) {
+            // Szukaj partnera - żywy, przeciwna płeć
+            for (const creature of allCreatures) {
+                if (!creature.isDead && creature.gender !== this.gender && creature.id !== this.id) {
+                    const distance = this.distanceTo(creature.x, creature.y);
+                    if (distance < closestDistance) {
+                        closestDistance = distance;
+                        closestCreature = creature;
+                    }
                 }
             }
         }
 
-        // Jeśli znalazła inną creaturkę, ustaw ją jako cel
+        // Jeśli znalazła cel, ustaw go
         if (closestCreature) {
             this.targetId = closestCreature.id;
             this.targetX = closestCreature.x;
@@ -238,6 +248,7 @@ class Creature {
 
     /**
      * Jedz zwłoki - zwiększ energię
+     * Zwłoki są automatycznie usuwane po zjedzeniu (oznaczane jako isRemoved)
      */
     eatCorpse() {
         const energyGain = 50;
@@ -246,6 +257,13 @@ class Creature {
         this.targetId = null;
         this.targetX = null;
         this.targetY = null;
+    }
+    
+    /**
+     * Oznacz zwłoki do usunięcia
+     */
+    markForRemoval() {
+        this.isRemoved = true;
     }
 
     /**
@@ -426,6 +444,7 @@ class World {
         // Sprawdź czy żywe creaturki dotarły do swoich celów (walka/jedzenie/rozmnażanie)
         const deadCreatures = new Set(); // Śledź które creaturki powinny umrzeć
         const breedingEvents = []; // Zbierz zdarzenia rozmnażania
+        const corpsesToRemove = new Set(); // Zwłoki do usunięcia
         
         for (const creature of creatures) {
             if (!creature.isDead && creature.targetId !== null && !deadCreatures.has(creature.id)) {
@@ -435,8 +454,9 @@ class World {
                     
                     if (distance < 20) { // Wystarczająco blisko
                         if (targetCreature.isDead) {
-                            // Zjadła zwłoki
+                            // Zjadła zwłoki - oznacz je do usunięcia
                             creature.eatCorpse();
+                            corpsesToRemove.add(targetCreature.id);
                         } else {
                             // INTERAKCJA z żywą creaturką
                             const result = creature.interact(targetCreature);
@@ -459,8 +479,8 @@ class World {
                                 targetCreature.targetX = null;
                                 targetCreature.targetY = null;
                             } else if (result === 1) {
-                                // Wygrała walkę - oponent musi umrzeć
-                                targetCreature.energy = 0;
+                                // Wygrała walkę - oponent musi umrzeć (natychmiast)
+                                targetCreature.energy = 0; // isDead będzie ustawione w update()
                                 deadCreatures.add(targetCreature.id);
                                 
                                 // Wyczyść cel po walce
@@ -468,8 +488,8 @@ class World {
                                 creature.targetX = null;
                                 creature.targetY = null;
                             } else if (result === -1) {
-                                // Przegrała walkę - musi umrzeć
-                                creature.energy = 0;
+                                // Przegrała walkę - musi umrzeć (natychmiast)
+                                creature.energy = 0; // isDead będzie ustawione w update()
                                 deadCreatures.add(creature.id);
                             }
                         }
@@ -481,7 +501,12 @@ class World {
         // Zapisz informacje o rozmnażaniu (będą użyte do tworzenia młodych w następnym kroku)
         this.lastBreedingEvents = breedingEvents;
         
-        // Usuń martwe creaturki, które się już rozkładają
+        // Usuń zwłoki które zostały zjedzone (natychmiast)
+        for (const corpseId of corpsesToRemove) {
+            this.creatures.delete(corpseId);
+        }
+        
+        // Usuń martwe creaturki, które się już całkowicie rozkładają (po ~10 sekundach jako corpse)
         const toRemove = [];
         for (const [id, creature] of this.creatures) {
             if (creature.isRemoved) {
