@@ -61,11 +61,72 @@ button:active {
     font-size: 14px;
 }
 
+.creatures-table-container {
+    margin-top: 30px;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 20px;
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+.creatures-table-container h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 18px;
+}
+
+.creatures-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.creatures-table thead {
+    background: rgba(76, 175, 80, 0.3);
+    border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.creatures-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #4CAF50;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 1px;
+}
+
+.creatures-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 13px;
+}
+
+.creatures-table tbody tr:hover {
+    background: rgba(76, 175, 80, 0.1);
+}
+
+.creatures-table tbody tr:nth-child(even) {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.color-swatch {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 3px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    vertical-align: middle;
+}
+
 canvas {
     display: block;
-    margin: 0 auto;
+    margin: 0 auto 20px;
     background: rgba(0, 0, 0, 0.2);
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 8px;
     cursor: crosshair;
+    width: 1400px;
+    height: 700px;
 }

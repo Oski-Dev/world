@@ -30,12 +30,13 @@ class Creature {
     }
 
     /**
-     * Generuj losowy kolor dla creaturki
+     * Generuj losowy kolor dla creaturki - jasne, wyraźne kolory
      */
     generateColor() {
-        const hue = Math.random() * 360;
-        const saturation = 70 + Math.random() * 30;
-        const lightness = 50 + Math.random() * 20;
+        const hues = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
+        const hue = hues[Math.floor(Math.random() * hues.length)];
+        const saturation = 80 + Math.random() * 20;    // 80-100% - nasycone kolory
+        const lightness = 45 + Math.random() * 15;     // 45-60% - nie za jasne, nie za ciemne
         return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
     }
 

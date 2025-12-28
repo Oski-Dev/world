@@ -12,6 +12,7 @@ class SimulatorUI {
         this.canvas = document.getElementById('canvas');
         this.ctx = this.canvas.getContext('2d');
         this.statsEl = document.getElementById('stats');
+        this.tableBody = document.getElementById('creaturesTableBody');
         
         // Ustaw rozmiar canvas
         this.resizeCanvas();
@@ -266,6 +267,45 @@ class SimulatorUI {
             const creatureCount = this.worldData.creatures.length;
             const generation = this.worldData.generation;
             this.statsEl.textContent = `Creatures: ${creatureCount} | Generation: ${generation}`;
+            
+            // Zaktualizuj tabelkę
+            this.updateCreaturesTable();
+        }
+    }
+
+    /**
+     * Zaktualizuj tabelkę z listą creaturek
+     */
+    updateCreaturesTable() {
+        if (!this.worldData || !this.worldData.creatures) {
+            this.tableBody.innerHTML = '';
+            return;
+        }
+
+        // Wyczyść tabelkę
+        this.tableBody.innerHTML = '';
+
+        // Dodaj każdą creaturę
+        for (const creature of this.worldData.creatures) {
+            const row = document.createElement('tr');
+            
+            const angleDegrees = (creature.angle * 180 / Math.PI).toFixed(0);
+            const speedFormatted = creature.currentSpeed.toFixed(2);
+            const energyFormatted = creature.energy.toFixed(1);
+            
+            row.innerHTML = `
+                <td>${creature.id}</td>
+                <td>${creature.x.toFixed(0)}</td>
+                <td>${creature.y.toFixed(0)}</td>
+                <td>${angleDegrees}°</td>
+                <td>${speedFormatted}</td>
+                <td>${energyFormatted}</td>
+                <td>${creature.gender.charAt(0).toUpperCase() + creature.gender.slice(1)}</td>
+                <td>${creature.age}</td>
+                <td><span class="color-swatch" style="background-color: ${creature.color};"></span></td>
+            `;
+            
+            this.tableBody.appendChild(row);
         }
     }
 }
