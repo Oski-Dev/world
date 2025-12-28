@@ -25,7 +25,7 @@ class Creature {
         this.maxAge = 1000 + Math.random() * 500; // 1000-1500 frames
         
         // Atrybuty sensoryczne
-        this.sightRange = 80 + Math.random() * 40; // Zasięg wzroku 80-120 px
+        this.sightRange = 150 + Math.random() * 80; // Zasięg wzroku 150-230 px (znacznie większy)
         
         // Uczucia (0-1) - wpływają na decyzje creaturki
         this.libido = 0;      // Chęć do rozmnażania - rośnie powoli
@@ -183,7 +183,7 @@ class Creature {
     }
 
     /**
-     * Spróbuj znaleźć martwą creaturkę w pobliżu (jeśli ma głód)
+     * Spróbuj znaleźć inną creaturkę w pobliżu (każdą, niezależnie od stanu)
      */
     updateTarget(allCreatures) {
         // Jeśli już ma cel i można do niego iść, kontynuuj
@@ -198,30 +198,33 @@ class Creature {
             return;
         }
 
-        // Szukaj martwej creaturki tylko jeśli ma głód
-        if (this.hunger < 0.3) {
-            return; // Nie wystarczająco głodna
+        // Szukaj każdej creaturki (nie tylko martwych) - jeśli warta energii
+        // Zawsze szukaj jeśli jest wystarczająco syta lub ma dość libido
+        const shouldHunt = this.hunger > 0.1 || this.libido > 0.3;
+        
+        if (!shouldHunt) {
+            return; // Nie wystarczająco głodna/zainteresowana
         }
 
-        // Poszukaj martwej creaturki w pobliżu
-        let closestDead = null;
+        // Poszukaj innej creaturki w pobliżu
+        let closestCreature = null;
         let closestDistance = this.sightRange;
 
         for (const creature of allCreatures) {
-            if (creature.isDead && creature.id !== this.id) {
+            if (creature.id !== this.id) { // Nie sam siebie
                 const distance = this.distanceTo(creature.x, creature.y);
                 if (distance < closestDistance) {
                     closestDistance = distance;
-                    closestDead = creature;
+                    closestCreature = creature;
                 }
             }
         }
 
-        // Jeśli znalazła martwą creaturkę, ustaw ją jako cel
-        if (closestDead) {
-            this.targetId = closestDead.id;
-            this.targetX = closestDead.x;
-            this.targetY = closestDead.y;
+        // Jeśli znalazła inną creaturkę, ustaw ją jako cel
+        if (closestCreature) {
+            this.targetId = closestCreature.id;
+            this.targetX = closestCreature.x;
+            this.targetY = closestCreature.y;
         }
     }
 
@@ -235,6 +238,42 @@ class Creature {
         this.targetId = null;
         this.targetX = null;
         this.targetY = null;
+    }
+
+    /**
+     * Oblicz siłę walki (im wyżej, tym lepsze szanse wygranej)
+     * Bierze pod uwagę: energię, kondycję fizyczną (wiek), płeć
+     */
+    calculateCombatPower() {
+        const energyFactor = this.energy / this.maxEnergy; // 0-1
+        const ageFactor = 1 - (this.age / this.maxAge); // Im młodsza, tym lepsza (0-1)
+        const genderFactor = this.gender === 'male' ? 1.15 : 1.0; // Samce mają nieznaczną przewagę
+        
+        // Waga: energia (60%) + kondycja (30%) + płeć (10%)
+        return (energyFactor * 0.6 + ageFactor * 0.3) * genderFactor;
+    }
+
+    /**
+     * Walka z inną creaturką
+     * @returns {number} 1 jeśli wygrana, -1 jeśli przegrana
+     */
+    fight(opponent) {
+        const myPower = this.calculateCombatPower();
+        const opponentPower = opponent.calculateCombatPower();
+        
+        // Dodaj losowość do walki (±20%)
+        const myPowerWithRandom = myPower * (0.8 + Math.random() * 0.4);
+        const opponentPowerWithRandom = opponentPower * (0.8 + Math.random() * 0.4);
+        
+        if (myPowerWithRandom > opponentPowerWithRandom) {
+            // Wygrana - odbierz energię przegrywającemu
+            const energyGain = opponent.energy * 0.5; // Weź 50% energii z pokonanego
+            this.energy = Math.min(this.maxEnergy, this.energy + energyGain);
+            return 1; // Wygrana
+        } else {
+            // Przegrana
+            return -1; // Przegrana
+        }
     }
 
     /**
@@ -322,7 +361,7 @@ class World {
     update() {
         const creatures = this.getCreatures();
         
-        // Pozwól każdej creaturce znaleźć martwą creaturkę do zjedzenia
+        // Pozwól każdej creaturce znaleźć inną creaturkę w pobliżu
         for (const creature of creatures) {
             creature.updateTarget(creatures);
         }
@@ -332,15 +371,38 @@ class World {
             creature.update();
         }
         
-        // Sprawdź czy żywe creaturki dotarły do zwłok
+        // Sprawdź czy żywe creaturki dotarły do swoich celów (walka/jedzenie)
+        const deadCreatures = new Set(); // Śledź które creaturki powinny umrzeć
+        
         for (const creature of creatures) {
-            if (!creature.isDead && creature.targetId !== null) {
+            if (!creature.isDead && creature.targetId !== null && !deadCreatures.has(creature.id)) {
                 const targetCreature = creatures.find(c => c.id === creature.targetId);
-                if (targetCreature && targetCreature.isDead) {
+                if (targetCreature) {
                     const distance = creature.distanceTo(targetCreature.x, targetCreature.y);
-                    if (distance < 15) {
-                        // Zjadła zwłoki!
-                        creature.eatCorpse();
+                    
+                    if (distance < 20) { // Wystarczająco blisko
+                        if (targetCreature.isDead) {
+                            // Zjadła zwłoki
+                            creature.eatCorpse();
+                        } else {
+                            // WALKA!
+                            const result = creature.fight(targetCreature);
+                            
+                            if (result === -1) {
+                                // Przegrała walkę - musi umrzeć
+                                creature.energy = 0;
+                                deadCreatures.add(creature.id);
+                            } else {
+                                // Wygrała - oponent musi umrzeć
+                                targetCreature.energy = 0;
+                                deadCreatures.add(targetCreature.id);
+                            }
+                            
+                            // Wyczyść cel po walce
+                            creature.targetId = null;
+                            creature.targetX = null;
+                            creature.targetY = null;
+                        }
                     }
                 }
             }
