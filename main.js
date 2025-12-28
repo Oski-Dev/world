@@ -307,6 +307,18 @@ class SimulatorUI {
             const status = creature.isDead ? 'Dead ☠️' : 'Alive ✓';
             const statusColor = creature.isDead ? '#FF6B6B' : '#4CAF50';
             
+            const sightFormatted = creature.sightRange.toFixed(0);
+            const libidoFormatted = creature.libido.toFixed(2);
+            const fearFormatted = creature.fear.toFixed(2);
+            const hungerFormatted = creature.hunger.toFixed(2);
+            
+            // Koloruj uczucia na podstawie wartości
+            const getEmotionColor = (value) => {
+                if (value < 0.33) return '#4CAF50'; // Zielony - niskie
+                if (value < 0.66) return '#FFC107'; // Żółty - średnie
+                return '#FF6B6B'; // Czerwony - wysokie
+            };
+            
             row.innerHTML = `
                 <td>${creature.id}</td>
                 <td>${creature.x.toFixed(0)}</td>
@@ -317,6 +329,10 @@ class SimulatorUI {
                 <td>${creature.gender.charAt(0).toUpperCase() + creature.gender.slice(1)}</td>
                 <td>${creature.age}</td>
                 <td><span style="color: ${statusColor}; font-weight: bold;">${status}</span></td>
+                <td>${sightFormatted}px</td>
+                <td><span style="color: ${getEmotionColor(creature.libido)}; font-weight: bold;">${libidoFormatted}</span></td>
+                <td><span style="color: ${getEmotionColor(creature.fear)}; font-weight: bold;">${fearFormatted}</span></td>
+                <td><span style="color: ${getEmotionColor(creature.hunger)}; font-weight: bold;">${hungerFormatted}</span></td>
                 <td><span class="color-swatch" style="background-color: ${creature.color};"></span></td>
             `;
             

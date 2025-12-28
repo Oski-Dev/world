@@ -24,10 +24,13 @@ class Creature {
         this.age = 0;
         this.maxAge = 1000 + Math.random() * 500; // 1000-1500 frames
         
-        // Atrybuty związane ze śmiercią
-        this.isDead = false;       // Czy creaturka jest martwa
-        this.isRemoved = false;    // Czy powinna być usunięta ze świata
-        this.deathCounter = 0;     // Licznik do śledzenia czasu umierania i rozkładu
+        // Atrybuty sensoryczne
+        this.sightRange = 80 + Math.random() * 40; // Zasięg wzroku 80-120 px
+        
+        // Uczucia (0-1) - wpływają na decyzje creaturki
+        this.libido = 0;      // Chęć do rozmnażania - rośnie powoli
+        this.fear = 0;        // Strach - rośnie w sytuacjach kryzysowych
+        this.hunger = 0;      // Głód - rośnie ze spadkiem energii
         
         // Licznik dla zmiany kierunku
         this.directionChangeCounter = 0;
@@ -71,6 +74,31 @@ class Creature {
             if (this.deathCounter >= 600) {
                 this.isRemoved = true; // Oznacz do usunięcia
             }
+        }
+
+        // ===== UCZUCIA =====
+        if (!this.isDead) {
+            const energyPercent = this.energy / this.maxEnergy;
+            
+            // Libido - rośnie powoli (niezależnie od stanu)
+            this.libido = Math.min(1, this.libido + 0.001);
+            
+            // Głód - rośnie wraz ze spadkiem energii
+            // Maksymalnie 1 gdy energia = 0, minimalnie 0 gdy energia = maksymalna
+            this.hunger = Math.max(0, 1 - energyPercent);
+            
+            // Strach - rośnie w sytuacjach kryzysowych (energia < 10%)
+            if (energyPercent < 0.1) {
+                // Szybko rośnie gdy energia krytyczna
+                this.fear = Math.min(1, this.fear + 0.02);
+            } else {
+                // Powoli maleje gdy energia w normie
+                this.fear = Math.max(0, this.fear - 0.01);
+            }
+            
+            // Strach zwiększa prędkość
+            const fearSpeedMultiplier = 1 + this.fear * 0.5; // 0% fear = 1x speed, 100% fear = 1.5x speed
+            this.currentSpeed *= fearSpeedMultiplier;
         }
 
         // Zmień kierunek losowo
@@ -142,7 +170,11 @@ class Creature {
             age: this.age,
             maxAge: this.maxAge,
             isDead: this.isDead,
-            deathCounter: this.deathCounter
+            deathCounter: this.deathCounter,
+            sightRange: this.sightRange,
+            libido: this.libido,
+            fear: this.fear,
+            hunger: this.hunger
         };
     }
 
@@ -162,6 +194,10 @@ class Creature {
         creature.maxAge = data.maxAge;
         creature.isDead = data.isDead;
         creature.deathCounter = data.deathCounter;
+        creature.sightRange = data.sightRange;
+        creature.libido = data.libido;
+        creature.fear = data.fear;
+        creature.hunger = data.hunger;
         return creature;
     }
 }
