@@ -127,6 +127,6 @@ canvas {
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 8px;
     cursor: crosshair;
-    width: 1400px;
-    height: 700px;
+    width: 1000px;
+    height: 600px;
 }

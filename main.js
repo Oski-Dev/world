@@ -195,37 +195,49 @@ class SimulatorUI {
     }
 
     /**
-     * Rysuj jedno stworzenie jako strzałkę
+     * Rysuj jedno stworzenie jako strzałkę lub krzyżyk (jeśli martwe)
      */
     drawCreature(creature) {
         const x = creature.x;
         const y = creature.y;
-        const length = 12; // Długość strzałki
-        const width = 4;   // Szerokość
+        
+        // Jeśli creaturka jest martwa - rysuj krzyżyk
+        if (creature.isDead) {
+            const crossSize = 8;
+            this.ctx.strokeStyle = creature.color;
+            this.ctx.lineWidth = 2;
+            
+            // Pozioma linia
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - crossSize, y);
+            this.ctx.lineTo(x + crossSize, y);
+            this.ctx.stroke();
+            
+            // Pionowa linia
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, y - crossSize);
+            this.ctx.lineTo(x, y + crossSize);
+            this.ctx.stroke();
+            
+            return; // Nie rysuj nic więcej
+        }
+        
+        // Rysuj żywą creaturkę jako strzałkę
+        const length = 12;
+        const width = 4;
         
         // Koniec strzałki (głowica)
         const endX = x + Math.cos(creature.angle) * length;
         const endY = y + Math.sin(creature.angle) * length;
         
-        // Punkt boczny do tworzenia trójkąta
-        const sideAngle1 = creature.angle + Math.PI / 2;
-        const sideAngle2 = creature.angle - Math.PI / 2;
-        const sideX1 = x + Math.cos(sideAngle1) * (width / 2);
-        const sideY1 = y + Math.sin(sideAngle1) * (width / 2);
-        const sideX2 = x + Math.cos(sideAngle2) * (width / 2);
-        const sideY2 = y + Math.sin(sideAngle2) * (width / 2);
-        
-        // Rysuj strzałkę jako trójkąt (tył) + linię (korpus)
         this.ctx.fillStyle = creature.color;
         this.ctx.strokeStyle = creature.color;
-        this.ctx.lineWidth = 1;
+        this.ctx.lineWidth = 2;
         
         // Rysuj tułów (linia)
         this.ctx.beginPath();
         this.ctx.moveTo(x, y);
         this.ctx.lineTo(endX, endY);
-        this.ctx.strokeStyle = creature.color;
-        this.ctx.lineWidth = 2;
         this.ctx.stroke();
         
         // Rysuj głowicę (trójkąt)
@@ -244,7 +256,7 @@ class SimulatorUI {
         this.ctx.closePath();
         this.ctx.fill();
         
-        // Pokaż energię jako mały pasek (opcjonalnie)
+        // Pokaż energię jako mały pasek
         const energyPercent = creature.energy / creature.maxEnergy;
         const barWidth = 10;
         const barHeight = 2;

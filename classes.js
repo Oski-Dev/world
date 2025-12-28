@@ -24,6 +24,11 @@ class Creature {
         this.age = 0;
         this.maxAge = 1000 + Math.random() * 500; // 1000-1500 frames
         
+        // Atrybuty związane ze śmiercią
+        this.isDead = false;       // Czy creaturka jest martwa
+        this.isRemoved = false;    // Czy powinna być usunięta ze świata
+        this.deathCounter = 0;     // Licznik do śledzenia czasu umierania i rozkładu
+        
         // Licznik dla zmiany kierunku
         this.directionChangeCounter = 0;
         this.directionChangeInterval = 20 + Math.random() * 30; // Zmień kierunek co 20-50 frames
@@ -44,12 +49,38 @@ class Creature {
      * Aktualizuj stan stworzenia
      */
     update() {
+        // Jeśli energia zerowa, creaturka się zatrzymuje
+        if (this.energy <= 0) {
+            this.currentSpeed = 0;
+            
+            // Licznik śmierci - 600 framów ≈ 10 sekund (60 FPS)
+            this.deathCounter++;
+            if (this.deathCounter >= 600 && !this.isDead) {
+                this.isDead = true;
+                this.deathCounter = 0; // Zresetuj licznik dla drugiej fazy
+            }
+        } else {
+            // Uzależnij prędkość od energii
+            this.currentSpeed = this.maxSpeed * (this.energy / this.maxEnergy);
+            this.deathCounter = 0;
+        }
+
+        // Jeśli creaturka już martwa, czekaj 10 sekund zanim zniknie
+        if (this.isDead) {
+            this.deathCounter++;
+            if (this.deathCounter >= 600) {
+                this.isRemoved = true; // Oznacz do usunięcia
+            }
+        }
+
         // Zmień kierunek losowo
-        this.directionChangeCounter++;
-        if (this.directionChangeCounter >= this.directionChangeInterval) {
-            this.angle += (Math.random() - 0.5) * Math.PI / 4; // Zmień kierunek o ±22.5 stopni
-            this.directionChangeCounter = 0;
-            this.directionChangeInterval = 20 + Math.random() * 30;
+        if (!this.isDead) { // Martwa creaturka się nie porusza
+            this.directionChangeCounter++;
+            if (this.directionChangeCounter >= this.directionChangeInterval) {
+                this.angle += (Math.random() - 0.5) * Math.PI / 4;
+                this.directionChangeCounter = 0;
+                this.directionChangeInterval = 20 + Math.random() * 30;
+            }
         }
 
         // Oblicz nową pozycję
@@ -76,9 +107,11 @@ class Creature {
             this.angle = -this.angle;
         }
 
-        // Strata energii ze względu na ruch
-        const energyLoss = 0.1;
-        this.energy = Math.max(0, this.energy - energyLoss);
+        // Strata energii ze względu na ruch (tylko jeśli żywa)
+        if (!this.isDead) {
+            const energyLoss = 0.1;
+            this.energy = Math.max(0, this.energy - energyLoss);
+        }
 
         // Starzenie się
         this.age++;
@@ -107,7 +140,9 @@ class Creature {
             gender: this.gender,
             color: this.color,
             age: this.age,
-            maxAge: this.maxAge
+            maxAge: this.maxAge,
+            isDead: this.isDead,
+            deathCounter: this.deathCounter
         };
     }
 
@@ -125,6 +160,8 @@ class Creature {
         creature.color = data.color;
         creature.age = data.age;
         creature.maxAge = data.maxAge;
+        creature.isDead = data.isDead;
+        creature.deathCounter = data.deathCounter;
         return creature;
     }
 }
@@ -163,6 +200,18 @@ class World {
         // Aktualizuj wszystkie stworzenia
         for (const creature of this.creatures.values()) {
             creature.update();
+        }
+        
+        // Usuń martwe creaturki, które się już rozkładają
+        const toRemove = [];
+        for (const [id, creature] of this.creatures) {
+            if (creature.isRemoved) {
+                toRemove.push(id);
+            }
+        }
+        
+        for (const id of toRemove) {
+            this.creatures.delete(id);
         }
         
         this.generation++;
