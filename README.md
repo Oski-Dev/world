@@ -1,0 +1,2 @@
+# world
+symulator świata
