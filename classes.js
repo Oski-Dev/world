@@ -68,8 +68,15 @@ class Creature {
                 this.deathCounter = 0; // Zresetuj licznik dla drugiej fazy
             }
         } else {
-            // Uzależnij prędkość od energii
-            this.currentSpeed = this.maxSpeed * (this.energy / this.maxEnergy);
+            // ===== SYSTEM RUCHU =====
+            // Bazowa prędkość ze spadkiem energii, ale z minimum dla czołgania się
+            const energyPercent = this.energy / this.maxEnergy;
+            const baseSpeed = this.maxSpeed * Math.max(0.15, energyPercent);
+            
+            // Emocje zwiększają prędkość - im bardziej wzburzona, tym szybciej się porusza
+            const emotionIntensity = this.fear * 0.4 + this.hunger * 0.3 + this.libido * 0.2;
+            this.currentSpeed = baseSpeed * (1 + emotionIntensity);
+            
             this.deathCounter = 0;
         }
 
@@ -101,10 +108,8 @@ class Creature {
                 this.fear = Math.max(0, this.fear - 0.01);
             }
             
-            // Strach zwiększa prędkość (jedno obliczenie, nie akumuluje się)
-            // Mnożymy currentSpeed którą już obliczył energy-based multiplier
-            const fearSpeedMultiplier = 1 + this.fear * 0.5; // 0% fear = 1x, 100% fear = 1.5x
-            this.currentSpeed *= fearSpeedMultiplier;
+            // Notatka: Strach jest już uwzględniony w systemie emocji powyżej
+            // (multiplier emocji zawiera strach * 0.4)
         }
 
         // Zmień kierunek losowo (lub w stronę celu jeśli go widzi)
