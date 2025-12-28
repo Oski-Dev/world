@@ -32,6 +32,11 @@ class Creature {
         this.fear = 0;        // Strach - rośnie w sytuacjach kryzysowych
         this.hunger = 0;      // Głód - rośnie ze spadkiem energii
         
+        // Cel i zachowanie
+        this.targetId = null;     // ID martwej creaturki do zjedzenia
+        this.targetX = null;      // Pozycja X celu
+        this.targetY = null;      // Pozycja Y celu
+        
         // Licznik dla zmiany kierunku
         this.directionChangeCounter = 0;
         this.directionChangeInterval = 20 + Math.random() * 30; // Zmień kierunek co 20-50 frames
@@ -96,8 +101,9 @@ class Creature {
                 this.fear = Math.max(0, this.fear - 0.01);
             }
             
-            // Strach zwiększa prędkość
-            const fearSpeedMultiplier = 1 + this.fear * 0.5; // 0% fear = 1x speed, 100% fear = 1.5x speed
+            // Strach zwiększa prędkość (jedno obliczenie, nie akumuluje się)
+            // Mnożymy currentSpeed którą już obliczył energy-based multiplier
+            const fearSpeedMultiplier = 1 + this.fear * 0.5; // 0% fear = 1x, 100% fear = 1.5x
             this.currentSpeed *= fearSpeedMultiplier;
         }
 
@@ -108,6 +114,21 @@ class Creature {
                 this.angle += (Math.random() - 0.5) * Math.PI / 4;
                 this.directionChangeCounter = 0;
                 this.directionChangeInterval = 20 + Math.random() * 30;
+            }
+        }
+
+        // Jeśli creaturka ma cel (martwą creaturkę), wędruj do niej
+        if (this.targetX !== null && this.targetY !== null) {
+            const dx = this.targetX - this.x;
+            const dy = this.targetY - this.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            // Jeśli dotarła do zwłok
+            if (distance < 10) {
+                // Będzie zjedzona w World.update()
+            } else {
+                // Ustaw kierunek na cel
+                this.angle = Math.atan2(dy, dx);
             }
         }
 
@@ -137,7 +158,7 @@ class Creature {
 
         // Strata energii ze względu na ruch (tylko jeśli żywa)
         if (!this.isDead) {
-            const energyLoss = 0.5; // Zwiększona strata energii dla szybszych zmian
+            const energyLoss = 0.15; // Strata energii na frame (dużo mniejsza dla dłuższego życia)
             this.energy = Math.max(0, this.energy - energyLoss);
         }
 
@@ -150,6 +171,70 @@ class Creature {
      */
     isAlive() {
         return this.energy > 0 && this.age < this.maxAge;
+    }
+
+    /**
+     * Oblicz dystans do innego obiektu
+     */
+    distanceTo(x, y) {
+        const dx = this.x - x;
+        const dy = this.y - y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    /**
+     * Spróbuj znaleźć martwą creaturkę w pobliżu (jeśli ma głód)
+     */
+    updateTarget(allCreatures) {
+        // Jeśli już ma cel i można do niego iść, kontynuuj
+        if (this.targetId !== null) {
+            const targetCreature = allCreatures.find(c => c.id === this.targetId);
+            // Jeśli cel już nie istnieje, szukaj nowego
+            if (!targetCreature) {
+                this.targetId = null;
+                this.targetX = null;
+                this.targetY = null;
+            }
+            return;
+        }
+
+        // Szukaj martwej creaturki tylko jeśli ma głód
+        if (this.hunger < 0.3) {
+            return; // Nie wystarczająco głodna
+        }
+
+        // Poszukaj martwej creaturki w pobliżu
+        let closestDead = null;
+        let closestDistance = this.sightRange;
+
+        for (const creature of allCreatures) {
+            if (creature.isDead && creature.id !== this.id) {
+                const distance = this.distanceTo(creature.x, creature.y);
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestDead = creature;
+                }
+            }
+        }
+
+        // Jeśli znalazła martwą creaturkę, ustaw ją jako cel
+        if (closestDead) {
+            this.targetId = closestDead.id;
+            this.targetX = closestDead.x;
+            this.targetY = closestDead.y;
+        }
+    }
+
+    /**
+     * Jedz zwłoki - zwiększ energię
+     */
+    eatCorpse() {
+        const energyGain = 50;
+        this.energy = Math.min(this.maxEnergy, this.energy + energyGain);
+        // Wyczyść cel po zjedzeniu
+        this.targetId = null;
+        this.targetX = null;
+        this.targetY = null;
     }
 
     /**
@@ -174,7 +259,8 @@ class Creature {
             sightRange: this.sightRange,
             libido: this.libido,
             fear: this.fear,
-            hunger: this.hunger
+            hunger: this.hunger,
+            targetId: this.targetId
         };
     }
 
@@ -198,6 +284,7 @@ class Creature {
         creature.libido = data.libido;
         creature.fear = data.fear;
         creature.hunger = data.hunger;
+        creature.targetId = data.targetId;
         return creature;
     }
 }
@@ -233,9 +320,30 @@ class World {
      * Aktualizuj cały świat - główna pętla symulacji
      */
     update() {
+        const creatures = this.getCreatures();
+        
+        // Pozwól każdej creaturce znaleźć martwą creaturkę do zjedzenia
+        for (const creature of creatures) {
+            creature.updateTarget(creatures);
+        }
+        
         // Aktualizuj wszystkie stworzenia
-        for (const creature of this.creatures.values()) {
+        for (const creature of creatures) {
             creature.update();
+        }
+        
+        // Sprawdź czy żywe creaturki dotarły do zwłok
+        for (const creature of creatures) {
+            if (!creature.isDead && creature.targetId !== null) {
+                const targetCreature = creatures.find(c => c.id === creature.targetId);
+                if (targetCreature && targetCreature.isDead) {
+                    const distance = creature.distanceTo(targetCreature.x, targetCreature.y);
+                    if (distance < 15) {
+                        // Zjadła zwłoki!
+                        creature.eatCorpse();
+                    }
+                }
+            }
         }
         
         // Usuń martwe creaturki, które się już rozkładają
