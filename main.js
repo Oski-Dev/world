@@ -34,11 +34,13 @@ class SimulatorUI {
         document.getElementById('startBtn').addEventListener('click', () => this.start());
         document.getElementById('pauseBtn').addEventListener('click', () => this.pause());
         document.getElementById('resetBtn').addEventListener('click', () => this.reset());
+        document.getElementById('addCreatureBtn').addEventListener('click', () => this.addCreature());
         
         // Stan
         this.isRunning = false;
         this.worldData = null;
         this.animationFrameId = null;
+        this.nextCreatureId = 1;
         
         console.log('Simulator UI inicjalizowany');
     }
@@ -90,12 +92,35 @@ class SimulatorUI {
             }
         });
         this.worldData = null;
+        this.nextCreatureId = 1;
         if (this.animationFrameId) {
             cancelAnimationFrame(this.animationFrameId);
         }
         this.render();
         this.updateStats();
         console.log('Świat zresetowany');
+    }
+
+    /**
+     * Dodaj nową creaturkę w losowym miejscu
+     */
+    addCreature() {
+        const x = Math.random() * (this.canvas.width - 40) + 20;
+        const y = Math.random() * (this.canvas.height - 40) + 20;
+        
+        this.worker.postMessage({
+            type: 'addCreature',
+            data: {
+                id: this.nextCreatureId,
+                x: x,
+                y: y,
+                worldWidth: this.canvas.width,
+                worldHeight: this.canvas.height
+            }
+        });
+        
+        this.nextCreatureId++;
+        console.log(`Dodano creaturę w pozycji (${x.toFixed(0)}, ${y.toFixed(0)})`);
     }
 
     /**
@@ -172,10 +197,59 @@ class SimulatorUI {
      * Rysuj jedno stworzenie
      */
     drawCreature(creature) {
-        this.ctx.fillStyle = '#4CAF50';
+        const x = creature.x;
+        const y = creature.y;
+        const size = 6;
+        
+        // Rysuj ciało creaturki
+        this.ctx.fillStyle = creature.color;
         this.ctx.beginPath();
-        this.ctx.arc(creature.x, creature.y, 5, 0, Math.PI * 2);
+        this.ctx.arc(x, y, size, 0, Math.PI * 2);
         this.ctx.fill();
+        
+        // Rysuj kierunek jako strzałkę
+        const arrowLength = size * 2.5;
+        const endX = x + Math.cos(creature.angle) * arrowLength;
+        const endY = y + Math.sin(creature.angle) * arrowLength;
+        
+        this.ctx.strokeStyle = creature.color;
+        this.ctx.lineWidth = 1.5;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, y);
+        this.ctx.lineTo(endX, endY);
+        this.ctx.stroke();
+        
+        // Rysuj mały trójkąt na końcu strzałki
+        const arrowHeadSize = 3;
+        const angle1 = creature.angle + Math.PI * 0.8;
+        const angle2 = creature.angle - Math.PI * 0.8;
+        
+        this.ctx.beginPath();
+        this.ctx.moveTo(endX, endY);
+        this.ctx.lineTo(
+            endX + Math.cos(angle1) * arrowHeadSize,
+            endY + Math.sin(angle1) * arrowHeadSize
+        );
+        this.ctx.lineTo(
+            endX + Math.cos(angle2) * arrowHeadSize,
+            endY + Math.sin(angle2) * arrowHeadSize
+        );
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        // Opcjonalnie: pokaż energię jako pasek
+        const energyPercent = creature.energy / creature.maxEnergy;
+        const barWidth = 12;
+        const barHeight = 2;
+        
+        // Tło paska
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        this.ctx.fillRect(x - barWidth / 2, y - size - 8, barWidth, barHeight);
+        
+        // Pasek energii
+        const energyColor = energyPercent > 0.5 ? '#4CAF50' : energyPercent > 0.25 ? '#FFC107' : '#F44336';
+        this.ctx.fillStyle = energyColor;
+        this.ctx.fillRect(x - barWidth / 2, y - size - 8, barWidth * energyPercent, barHeight);
     }
 
     /**

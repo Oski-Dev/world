@@ -52,8 +52,15 @@ self.onmessage = (event) => {
         case 'addCreature':
             // Dodaj stworzenie
             if (world) {
-                const creature = new Creature(data.id, data.x, data.y);
+                const creature = new Creature(
+                    data.id,
+                    data.x,
+                    data.y,
+                    data.worldWidth,
+                    data.worldHeight
+                );
                 world.addCreature(creature);
+                console.log(`[Worker] Dodano creaturę ID: ${data.id}`);
             }
             break;
 
