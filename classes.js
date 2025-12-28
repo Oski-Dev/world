@@ -107,27 +107,30 @@ class Creature {
             this.currentSpeed *= fearSpeedMultiplier;
         }
 
-        // Zmień kierunek losowo
+        // Zmień kierunek losowo (lub w stronę celu jeśli go widzi)
         if (!this.isDead) { // Martwa creaturka się nie porusza
-            this.directionChangeCounter++;
-            if (this.directionChangeCounter >= this.directionChangeInterval) {
-                this.angle += (Math.random() - 0.5) * Math.PI / 4;
-                this.directionChangeCounter = 0;
-                this.directionChangeInterval = 20 + Math.random() * 30;
+            // Jeśli ma cel, nie zmieniaj kierunku losowo - leć do celu
+            if (this.targetId === null) {
+                this.directionChangeCounter++;
+                if (this.directionChangeCounter >= this.directionChangeInterval) {
+                    this.angle += (Math.random() - 0.5) * Math.PI / 4;
+                    this.directionChangeCounter = 0;
+                    this.directionChangeInterval = 20 + Math.random() * 30;
+                }
             }
         }
 
-        // Jeśli creaturka ma cel (martwą creaturkę), wędruj do niej
+        // Jeśli creaturka ma cel (inną creaturkę lub zwłoki), wędruj do niej
         if (this.targetX !== null && this.targetY !== null) {
             const dx = this.targetX - this.x;
             const dy = this.targetY - this.y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             
-            // Jeśli dotarła do zwłok
+            // Jeśli dotarła do celu
             if (distance < 10) {
-                // Będzie zjedzona w World.update()
+                // Będzie obsługiwana w World.update()
             } else {
-                // Ustaw kierunek na cel
+                // Ustaw kierunek na cel (natychmiast, bez zmiany kierunku losowo)
                 this.angle = Math.atan2(dy, dx);
             }
         }

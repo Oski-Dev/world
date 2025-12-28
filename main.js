@@ -201,6 +201,13 @@ class SimulatorUI {
         const x = creature.x;
         const y = creature.y;
         
+        // Rysuj pole widzenia (cienki okrąg)
+        this.ctx.strokeStyle = creature.isDead ? 'rgba(200, 0, 0, 0.15)' : 'rgba(100, 200, 100, 0.2)';
+        this.ctx.lineWidth = 1;
+        this.ctx.beginPath();
+        this.ctx.arc(x, y, creature.sightRange, 0, Math.PI * 2);
+        this.ctx.stroke();
+        
         // Jeśli creaturka jest martwa - rysuj krzyżyk
         if (creature.isDead) {
             const crossSize = 8;
